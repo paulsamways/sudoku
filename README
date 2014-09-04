@@ -1,0 +1,5 @@
+Sudoku solver written in Haskell.
+
+Work in progress.
+
+Based on Peter Norvig's implementation: http://norvig.com/sudoku.html.
