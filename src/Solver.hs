@@ -1,16 +1,30 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances  #-}
+
 module Solver where
 
 import Data.Array
+import Data.Char
 import Data.List
 import Data.Set (Set, fromList, toList, singleton, unions, difference)
 
+class Print a where
+    print :: a -> String
+
 data Square = Exactly Integer
             | Possibly [Integer] deriving (Eq, Ord)
+
+instance Print Square where
+    print (Exactly x) = show x
+    print _ = "?"
 
 type Row = Char
 type Column = Integer
 type Position = (Row, Column)
 type Grid = Array Position Square 
+
+instance Print Grid where
+    print g = unlines [unwords [Solver.print (g ! (x, y)) | x <- ['A'..'I']] | y <- [1..9]]
 
 game :: Grid
 game = array (('A', 1), ('I', 9)) [((row,col), Possibly [1..9]) | row <- ['A'..'I'], col <- [1..9]]
@@ -18,16 +32,9 @@ game = array (('A', 1), ('I', 9)) [((row,col), Possibly [1..9]) | row <- ['A'..'
 -- loading games
 
 readSquare :: Char -> Square
-readSquare '1' = Exactly 1
-readSquare '2' = Exactly 2
-readSquare '3' = Exactly 3
-readSquare '4' = Exactly 4
-readSquare '5' = Exactly 5
-readSquare '6' = Exactly 6
-readSquare '7' = Exactly 7
-readSquare '8' = Exactly 8
-readSquare '9' = Exactly 9
-readSquare _ = Possibly [1..9]
+readSquare c = case readValue c of
+                 Just x  -> Exactly x
+                 Nothing -> Possibly [1..9]
 
 readGame :: String -> Grid
 readGame s = let g = game
@@ -81,3 +88,24 @@ overwrite :: [a] -> [a] -> [a]
 overwrite [] _ = []
 overwrite as [] = as
 overwrite (_:as) (b:bs) = b:(overwrite as bs)
+
+readValue :: Char -> Maybe Integer
+readValue = readColumn
+
+readColumn :: Char -> Maybe Column
+readColumn '1' = Just 1
+readColumn '2' = Just 2
+readColumn '3' = Just 3
+readColumn '4' = Just 4
+readColumn '5' = Just 5
+readColumn '6' = Just 6
+readColumn '7' = Just 7
+readColumn '8' = Just 8
+readColumn '9' = Just 9
+readColumn _ = Nothing
+
+readRow :: Char -> Maybe Row
+readRow c =  let uC = toUpper c in
+             if elem uC "ABCDEFGHI"
+             then Just uC
+             else Nothing
