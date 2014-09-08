@@ -1,5 +1,9 @@
 Sudoku solver written in Haskell.
 
-Work in progress.
+:r [0-9]{81} - Read puzzle
+:s - Solve puzzle
+:q - Quit
+[A-I][1-9]=[1-9] - Assign value to cell
 
-Based on Peter Norvig's implementation: http://norvig.com/sudoku.html.
+
+Inspired by Peter Norvig's post: http://norvig.com/sudoku.html.

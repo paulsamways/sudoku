@@ -38,9 +38,9 @@ applyMove g (r,c,v) = case parseMove (r,c,v) of
                                                Nothing -> Left "Invalid move"
                         Nothing -> Left "Could not parse movement"
 
-parseMove :: (Char,Char,Char) -> Maybe (Position, Integer)
+parseMove :: (Char,Char,Char) -> Maybe (Position, Int)
 parseMove (r, c, v) = do
   row <- readRow r
-  column <- readColumn c
-  value <- readValue v
+  column <- charToInt c
+  value <- charToInt v
   Just ((row,column), value)

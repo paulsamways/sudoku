@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Solver where
 
@@ -13,15 +13,15 @@ import Data.Set (Set, fromList, toList, singleton, unions, difference)
 class Print a where
     print :: a -> String
 
-data Square = Exactly Integer
-            | Possibly [Integer] deriving (Show, Eq, Ord)
+data Square = Exactly Int
+            | Possibly [Int] deriving (Show, Eq, Ord)
 
 instance Print Square where
     print (Exactly x) = overwrite "           " (show x)
     print (Possibly xs) = "[" ++ (overwrite "         " (foldr (\i s -> (show i) ++ s) "" xs)) ++ "]"
 
 type Row = Char
-type Column = Integer
+type Column = Int
 type Position = (Row, Column)
 type Grid = Array Position Square 
 
@@ -36,7 +36,7 @@ game = array (('A', 1), ('I', 9)) [((row,col), Possibly [1..9]) | row <- ['A'..'
 readGame :: String -> Maybe Grid
 readGame s = let g = game
                  input = filter (flip elem "1234567890.") s
-                 squares = zip [(row,col) | row <- ['A'..'I'], col <- [1..9]] (map readValue input) in
+                 squares = zip [(row,col) | row <- ['A'..'I'], col <- [1..9]] (map charToInt input) in
              foldM (\g (p, v) -> case v of
                                    Just x -> assign g p x
                                    Nothing -> Just g) game squares
@@ -59,7 +59,7 @@ peersOf p@(r, c) = toList (unions [rowOf r, columnOf c, boxOf p] `difference` si
 
 
 -- game actions
-eliminate :: Grid -> [Position] -> Integer -> Maybe Grid
+eliminate :: Grid -> [Position] -> Int -> Maybe Grid
 eliminate g [] _ = Just g
 eliminate g (x:xs) v = case g ! x of
                          Exactly xv -> if xv == v 
@@ -78,7 +78,7 @@ eliminate g (x:xs) v = case g ! x of
                                               else (\g'' -> assign g'' x (head xvs')) =<< g'
                                          else eliminate g xs v
 
-assign :: Grid -> Position -> Integer -> Maybe Grid
+assign :: Grid -> Position -> Int -> Maybe Grid
 assign g p v = do
   let peers = peersOf p
   eliminate (g // [(p, Exactly v)]) peers v
@@ -90,6 +90,8 @@ solve g = let s = sortBy (\(_, Possibly xs) (_, Possibly ys) -> compare xs ys) [
           else let (p, Possibly xs) = head s in
                Solver.until (\x -> assign g p x >>= solve) xs
 
+-- utils
+
 containing :: Eq a => a -> [[a]] -> [a]
 containing x (xs:xss) = case elem x xs of
                         True -> xs
@@ -100,20 +102,9 @@ overwrite [] _ = []
 overwrite as [] = as
 overwrite (_:as) (b:bs) = b:(overwrite as bs)
 
-readValue :: Char -> Maybe Integer
-readValue = readColumn
-
-readColumn :: Char -> Maybe Column
-readColumn '1' = Just 1
-readColumn '2' = Just 2
-readColumn '3' = Just 3
-readColumn '4' = Just 4
-readColumn '5' = Just 5
-readColumn '6' = Just 6
-readColumn '7' = Just 7
-readColumn '8' = Just 8
-readColumn '9' = Just 9
-readColumn _ = Nothing
+charToInt :: Char -> Maybe Int
+charToInt x = let i = digitToInt x in
+                if i > 0 && i < 10 then Just i else Nothing
 
 readRow :: Char -> Maybe Row
 readRow c =  let uC = toUpper c in
