@@ -3,20 +3,22 @@
 
 module Solver where
 
+import Control.Monad (foldM)
 import Data.Array
 import Data.Char
 import Data.List
+import Data.Ord
 import Data.Set (Set, fromList, toList, singleton, unions, difference)
 
 class Print a where
     print :: a -> String
 
 data Square = Exactly Integer
-            | Possibly [Integer] deriving (Eq, Ord)
+            | Possibly [Integer] deriving (Show, Eq, Ord)
 
 instance Print Square where
-    print (Exactly x) = show x
-    print _ = "?"
+    print (Exactly x) = overwrite "           " (show x)
+    print (Possibly xs) = "[" ++ (overwrite "         " (foldr (\i s -> (show i) ++ s) "" xs)) ++ "]"
 
 type Row = Char
 type Column = Integer
@@ -24,23 +26,20 @@ type Position = (Row, Column)
 type Grid = Array Position Square 
 
 instance Print Grid where
-    print g = unlines [unwords [Solver.print (g ! (x, y)) | x <- ['A'..'I']] | y <- [1..9]]
+    print g = unlines [unwords [Solver.print (g ! (x, y)) | y <- [1..9]] | x <- ['A'..'I']]
 
 game :: Grid
 game = array (('A', 1), ('I', 9)) [((row,col), Possibly [1..9]) | row <- ['A'..'I'], col <- [1..9]]
 
 -- loading games
 
-readSquare :: Char -> Square
-readSquare c = case readValue c of
-                 Just x  -> Exactly x
-                 Nothing -> Possibly [1..9]
-
-readGame :: String -> Grid
+readGame :: String -> Maybe Grid
 readGame s = let g = game
-                 input = filter (flip elem "123456789.") s
-                 squares = zip [(row,col) | row <- ['A'..'I'], col <- [1..9]] (map readSquare input) in
-             g // squares
+                 input = filter (flip elem "1234567890.") s
+                 squares = zip [(row,col) | row <- ['A'..'I'], col <- [1..9]] (map readValue input) in
+             foldM (\g (p, v) -> case v of
+                                   Just x -> assign g p x
+                                   Nothing -> Just g) game squares
 
 -- grid querying
 
@@ -69,15 +68,27 @@ eliminate g (x:xs) v = case g ! x of
                                            
                          Possibly (xv:[]) -> if xv == v
                                              then Nothing
-                                             else eliminate g xs v
+                                             else eliminate (g // [(x, Exactly xv)]) xs v
 
                          Possibly xvs -> if elem v xvs
-                                         then eliminate (g // [(x, Possibly (delete v xvs))]) xs v
+                                         then let xvs' = delete v xvs
+                                                  g' = eliminate (g // [(x, Possibly xvs')]) xs v in
+                                              if (length xvs') > 1 
+                                              then g'
+                                              else (\g'' -> assign g'' x (head xvs')) =<< g'
                                          else eliminate g xs v
 
 assign :: Grid -> Position -> Integer -> Maybe Grid
-assign g p v = let peers = peersOf p in
-               eliminate g peers v
+assign g p v = do
+  let peers = peersOf p
+  eliminate (g // [(p, Exactly v)]) peers v
+
+solve :: Grid -> Maybe Grid
+solve g = let s = sortBy (\(_, Possibly xs) (_, Possibly ys) -> compare xs ys) [s | s@(_, Possibly xs) <- assocs g] in
+          if length s == 0
+          then Just g
+          else let (p, Possibly xs) = head s in
+               Solver.until (\x -> assign g p x >>= solve) xs
 
 containing :: Eq a => a -> [[a]] -> [a]
 containing x (xs:xss) = case elem x xs of
@@ -109,3 +120,10 @@ readRow c =  let uC = toUpper c in
              if elem uC "ABCDEFGHI"
              then Just uC
              else Nothing
+
+until :: (a -> Maybe b) -> [a] -> Maybe b
+until _ [] = Nothing
+until f (x:xs) = case f x of
+                   Just b -> Just b
+                   Nothing -> Solver.until f xs
+                   
